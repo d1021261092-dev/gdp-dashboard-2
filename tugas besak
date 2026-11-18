@@ -1,0 +1,445 @@
+
+import re
+import streamlit as st
+
+# ==================== KONFIGURASI HALAMAN ====================
+st.set_page_config(
+    page_title="Laundry Kiloan",
+    page_icon="🧺",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# ==================== CSS TAMPILAN ====================
+
+st.markdown("""
+<style>
+
+/* Warna dasar seluruh tulisan */
+.stApp {
+    color: #243b53 !important;
+}
+
+/* Judul utama aplikasi */
+.stApp h1 {
+    color: #17436b !important;
+    font-weight: 800 !important;
+}
+
+/* Judul bagian */
+.stApp h2,
+.stApp h3,
+.stApp h4 {
+    color: #17436b !important;
+    font-weight: 700 !important;
+}
+
+/* Tulisan paragraf dan keterangan */
+.stApp p,
+.stApp .stMarkdown,
+.stApp .stCaption {
+    color: #334e68 !important;
+}
+
+/* Label input NIM dan berat cucian */
+.stApp label,
+.stApp [data-testid="stWidgetLabel"] p {
+    color: #243b53 !important;
+    font-weight: 600 !important;
+}
+
+/* Tulisan bantuan pada input */
+.stApp [data-testid="stTooltipIcon"] {
+    color: #526d82 !important;
+}
+
+/* Placeholder input */
+.stApp input::placeholder {
+    color: #d1d5db !important;
+    opacity: 1 !important;
+}
+
+/* Teks pada tombol */
+.stApp .stButton button {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Tulisan pada bagian hasil */
+.stApp [data-testid="stExpander"] {
+    color: #243b53 !important;
+}
+
+/* Memastikan tulisan di dalam informasi mudah dibaca */
+.stApp .info-box,
+.stApp .error-box,
+.stApp .success-box {
+    font-weight: 500;
+}
+
+</style>
+""", unsafe_allow_html=True)
+st.markdown("""
+<style>
+.stApp {
+    background-color: #f2f6fc;
+}
+
+.block-container {
+    padding-top: 2rem;
+}
+
+h1, h2, h3 {
+    color: #17436b;
+}
+
+.stTextInput input,
+.stNumberInput input {
+    border-radius: 10px;
+}
+
+.stButton button {
+    height: 45px;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.success-box {
+    background-color: #d9f5c9;
+    border: 1px solid #91d77c;
+    border-radius: 16px;
+    padding: 25px;
+    color: #174d18;
+    margin-top: 20px;
+}
+
+.success-box h1 {
+    color: #174d18;
+    font-size: 38px;
+}
+
+.error-box {
+    background-color: #ffe4e4;
+    border: 1px solid #e89a9a;
+    border-left: 6px solid #dc3545;
+    border-radius: 12px;
+    padding: 18px;
+    margin-top: 15px;
+    color: #842029;
+}
+
+.info-box {
+    background-color: #e3efff;
+    border: 1px solid #a6c8f5;
+    border-radius: 12px;
+    padding: 15px;
+    color: #17436b;
+    margin-top: 12px;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 13px 0;
+    border-bottom: 1px solid #dce3ec;
+    color: #243b53;
+    font-size: 16px;
+}
+
+.result-row strong {
+    color: #17436b;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ==================== INISIALISASI SESSION ====================
+
+st.markdown("""
+<style>
+
+/* Tombol Hitung Biaya */
+.stApp button[kind="primary"] {
+    background-color: #d13d50 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 10px !important;
+}
+
+.stApp button[kind="primary"] p,
+.stApp button[kind="primary"] div {
+    color: #ffffff !important;
+}
+
+/* Tombol Hapus Data */
+.stApp button[kind="secondary"] {
+    background-color: #292929 !important;
+    color: #ffffff !important;
+    border: 1px solid #555555 !important;
+    border-radius: 10px !important;
+}
+
+.stApp button[kind="secondary"] p,
+.stApp button[kind="secondary"] div {
+    color: #ffffff !important;
+}
+
+/* Efek ketika tombol disentuh */
+.stApp button[kind="primary"]:hover {
+    background-color: #b92e42 !important;
+}
+
+.stApp button[kind="secondary"]:hover {
+    background-color: #444444 !important;
+}
+
+/* Pesan peringatan Streamlit */
+.stApp [data-testid="stAlert"] {
+    background-color: #ffe4e4 !important;
+    border: 1px solid #e89a9a !important;
+    border-radius: 10px !important;
+    color: #842029 !important;
+}
+
+.stApp [data-testid="stAlert"] p,
+.stApp [data-testid="stAlert"] div {
+    color: #842029 !important;
+}
+
+/* Kotak kesalahan */
+.stApp .error-box {
+    background-color: #ffe4e4 !important;
+    border: 1px solid #e89a9a !important;
+    border-left: 6px solid #dc3545 !important;
+    color: #842029 !important;
+}
+
+.stApp .error-box p,
+.stApp .error-box h3 {
+    color: #842029 !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+if "hasil" not in st.session_state:
+    st.session_state.hasil = None
+
+if "error" not in st.session_state:
+    st.session_state.error = None
+
+
+# ==================== JUDUL ====================
+st.title("🧺 SISTEM PERHITUNGAN BIAYA LAUNDRY")
+st.caption("Aplikasi perhitungan biaya laundry kiloan")
+
+
+# ==================== LAYOUT UTAMA ====================
+kolom1, kolom2 = st.columns(2, gap="large")
+
+
+# ==================== INPUT DATA ====================
+with kolom1:
+
+    st.header("📝 Input Data Cucian")
+    st.write("Silakan masukkan identitas dan berat cucian.")
+
+    nim = st.text_input(
+        "Nomor Induk Mahasiswa (NIM)",
+        placeholder="Masukkan 10 digit NIM"
+    )
+
+    berat = st.number_input(
+        "Berat Total Cucian (kg)",
+        min_value=0.0,
+        step=1.0,
+        help="Masukkan berat cucian dalam kilogram."
+    )
+
+    tombol1, tombol2 = st.columns(2)
+
+    with tombol1:
+        hitung = st.button(
+            "Hitung Biaya",
+            type="primary",
+            use_container_width=True
+        )
+
+    with tombol2:
+        hapus = st.button(
+            "Hapus Data",
+            use_container_width=True
+        )
+
+
+# ==================== PROSES PERHITUNGAN ====================
+if hapus:
+    st.session_state.hasil = None
+    st.session_state.error = None
+    st.rerun()
+
+
+if hitung:
+
+    st.session_state.hasil = None
+    st.session_state.error = None
+
+    # Validasi NIM
+    if not nim.strip():
+        st.session_state.error = "NIM tidak boleh kosong."
+
+    elif not re.fullmatch(r"\d{10}", nim.strip()):
+        st.session_state.error = (
+            "NIM tidak valid! NIM harus terdiri dari tepat 10 angka."
+        )
+
+    elif berat <= 0:
+        st.session_state.error = (
+            "Berat cucian tidak valid! Berat harus lebih dari 0 kg."
+        )
+
+    else:
+        tarif = 6000
+
+        # Menghitung jumlah digit genap
+        jumlah_genap = sum(
+            1 for angka in nim if int(angka) % 2 == 0
+        )
+
+        # Menghitung persentase diskon
+        diskon = jumlah_genap
+
+        # Menghitung biaya
+        total_awal = berat * tarif
+        potongan = total_awal * diskon / 100
+        total_akhir = total_awal - potongan
+
+        st.session_state.hasil = {
+            "nim": nim,
+            "berat": berat,
+            "tarif": tarif,
+            "jumlah_genap": jumlah_genap,
+            "diskon": diskon,
+            "total_awal": total_awal,
+            "potongan": potongan,
+            "total_akhir": total_akhir
+        }
+
+
+# ==================== HASIL PERHITUNGAN ====================
+with kolom2:
+
+    st.header("📊 Hasil Perhitungan Biaya")
+
+    # Jika terdapat kesalahan
+    if st.session_state.error:
+
+        st.markdown(f"""
+        <div class="error-box">
+            <h3 style="color:#b42318;">❌ Data Tidak Valid!</h3>
+            <p style="font-size:16px; font-weight:bold;">
+                {st.session_state.error}
+            </p>
+            <p>Silakan periksa kembali data yang Anda masukkan.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.warning("Perhitungan dibatalkan karena terdapat kesalahan.")
+
+    # Jika perhitungan berhasil
+    elif st.session_state.hasil:
+
+        data = st.session_state.hasil
+
+        st.markdown("""
+        <div class="info-box">
+            <strong>✅ Perhitungan Berhasil!</strong><br>
+            Data cucian berhasil divalidasi dan dihitung.
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="result-row">
+            <span>Nomor Induk Mahasiswa (NIM)</span>
+            <strong>{data['nim']}</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Berat Total Cucian</span>
+            <strong>{data['berat']:g} kg</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Tarif Laundry per Kg</span>
+            <strong>Rp {data['tarif']:,.0f}</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Jumlah Digit Genap NIM</span>
+            <strong>{data['jumlah_genap']} digit</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Persentase Diskon</span>
+            <strong>{data['diskon']}%</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Total Biaya Sebelum Diskon</span>
+            <strong>Rp {data['total_awal']:,.0f}</strong>
+        </div>
+
+        <div class="result-row">
+            <span>Total Potongan Diskon</span>
+            <strong>Rp {data['potongan']:,.0f}</strong>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class="success-box">
+            <h3 style="color:#174d18;">💰 TOTAL PEMBAYARAN</h3>
+            <h1>Rp {data['total_akhir']:,.0f}</h1>
+            <p style="font-size:17px; font-weight:bold;">
+                Terima kasih telah menggunakan layanan kami.
+            </p>
+            <p>🎉 Perhitungan biaya laundry berhasil!</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.expander("🔍 Lihat Detail Proses Perhitungan"):
+
+            st.write("**1. Menghitung biaya awal**")
+
+            st.latex(
+                f"{data['berat']:g} \\times "
+                f"{data['tarif']} = {data['total_awal']:,.0f}"
+            )
+
+            st.write("**2. Menghitung potongan diskon**")
+
+            st.latex(
+                f"{data['total_awal']:,.0f} \\times "
+                f"\\frac{{{data['diskon']}}}{{100}} = "
+                f"{data['potongan']:,.0f}"
+            )
+
+            st.write("**3. Menghitung total pembayaran**")
+
+            st.latex(
+                f"{data['total_awal']:,.0f} - "
+                f"{data['potongan']:,.0f} = "
+                f"{data['total_akhir']:,.0f}"
+            )
+
+    else:
+
+        st.markdown("""
+        <div class="info-box">
+            <h4>📋 Menunggu Data Cucian</h4>
+            <p>
+                Masukkan NIM dan berat cucian, kemudian tekan
+                tombol <b>Hitung Biaya</b> untuk melihat hasil.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
